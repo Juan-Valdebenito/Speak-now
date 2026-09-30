@@ -1,0 +1,17 @@
+# Entorno virtual
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Modelos descargados (pesan mucho, no se suben)
+models/
+
+# Editor / sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
