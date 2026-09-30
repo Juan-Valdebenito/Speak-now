@@ -81,6 +81,44 @@ class AudioCapture:
                 yield np.concatenate(buffer)
                 buffer, size = [], 0
 
+    def phrases(self, silence_threshold=config.SILENCE_THRESHOLD,
+                silence_duration=config.SILENCE_DURATION,
+                max_duration=config.MAX_PHRASE_DURATION,
+                min_duration=config.MIN_PHRASE_DURATION):
+        """Generador infinito de frases: corta el audio cuando detecta silencio.
+
+        Así cada fragmento contiene frases completas en vez de cortes
+        arbitrarios, lo que mejora mucho la transcripción.
+        """
+        block_seconds = self.block_size / self.sample_rate
+        silent_blocks_needed = round(silence_duration / block_seconds)
+        max_blocks = round(max_duration / block_seconds)
+        min_samples = int(min_duration * self.sample_rate)
+
+        buffer = []
+        silent_blocks = 0
+        speaking = False
+        while True:
+            block = self.read_block()
+            is_speech = rms_level(block) >= silence_threshold
+
+            if not speaking:
+                if is_speech:
+                    speaking = True
+                    buffer = [block]
+                    silent_blocks = 0
+                continue
+
+            buffer.append(block)
+            silent_blocks = 0 if is_speech else silent_blocks + 1
+
+            if silent_blocks >= silent_blocks_needed or len(buffer) >= max_blocks:
+                audio = np.concatenate(buffer)
+                speaking = False
+                buffer = []
+                if len(audio) >= min_samples:
+                    yield audio
+
 
 def rms_level(audio):
     """Volumen (RMS) de un bloque de audio, útil para medir si hay voz."""

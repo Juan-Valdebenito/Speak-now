@@ -1,3 +1,8 @@
 # Parte 1 - Captura de audio
 sounddevice>=0.4.6
 numpy>=1.24
+
+# Parte 2 - Transcripción (voz -> texto)
+faster-whisper>=1.0
+# av 16+ rompe la lectura de archivos en faster-whisper 1.2.x
+av>=11,<16

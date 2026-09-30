@@ -26,7 +26,7 @@ pip install -r requirements.txt
 ## Progreso
 
 - [x] Parte 1 – Estructura del proyecto y captura de audio
-- [ ] Parte 2 – Transcripción con faster-whisper
+- [x] Parte 2 – Transcripción con faster-whisper
 - [ ] Parte 3 – Traducción con Argos Translate
 - [ ] Parte 4 – Ventana de subtítulos con Tkinter
 - [ ] Parte 5 – Integración final y selector de idioma
@@ -38,3 +38,18 @@ python -m scripts.test_microphone
 ```
 
 Deberías ver una barra que se mueve cuando hablas.
+
+## Probar la transcripción (Parte 2)
+
+```bash
+python -m scripts.test_transcriber                 # hablas en inglés
+python -m scripts.test_transcriber --language es   # hablas en español
+python -m scripts.test_transcriber --model base    # modelo más rápido
+```
+
+La primera vez se descarga el modelo de Whisper (~480 MB para `small`)
+en la carpeta `models/`. Cada frase se muestra así:
+`[duración del audio | tiempo en procesarla] texto`.
+
+Si el texto aparece con mucho retraso, usa `--model base` o `--model tiny`.
+Si no detecta tu voz, baja `SILENCE_THRESHOLD` en `speak_now/config.py`.
