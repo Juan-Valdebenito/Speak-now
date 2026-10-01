@@ -27,7 +27,7 @@ pip install -r requirements.txt
 
 - [x] Parte 1 – Estructura del proyecto y captura de audio
 - [x] Parte 2 – Transcripción con faster-whisper
-- [ ] Parte 3 – Traducción con Argos Translate
+- [x] Parte 3 – Traducción con Argos Translate
 - [ ] Parte 4 – Ventana de subtítulos con Tkinter
 - [ ] Parte 5 – Integración final y selector de idioma
 
@@ -53,3 +53,15 @@ en la carpeta `models/`. Cada frase se muestra así:
 
 Si el texto aparece con mucho retraso, usa `--model base` o `--model tiny`.
 Si no detecta tu voz, baja `SILENCE_THRESHOLD` en `speak_now/config.py`.
+
+## Probar la traducción (Parte 3)
+
+```bash
+python -m scripts.test_translator                     # escribes en inglés -> español
+python -m scripts.test_translator --from es --to en   # escribes en español -> inglés
+python -m scripts.test_translator --mic               # hablas en inglés -> español
+python -m scripts.test_translator --mic --from es --to en
+```
+
+La primera vez se descargan los paquetes de idioma de Argos (~100 MB cada
+dirección) en `models/argos/`. Después todo funciona sin internet.

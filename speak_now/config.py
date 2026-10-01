@@ -33,3 +33,9 @@ WHISPER_COMPUTE_TYPE = "int8"
 WHISPER_BEAM_SIZE = 1
 # Carpeta donde se descargan los modelos (ignorada por git).
 MODELS_DIR = "models"
+
+# --- Traducción (Argos Translate) ---
+# Carpeta donde se guardan los paquetes de idioma de Argos (ignorada por git).
+ARGOS_PACKAGES_DIR = MODELS_DIR + "/argos"
+# Idiomas soportados por el programa.
+LANGUAGES = {"en": "Inglés", "es": "Español"}
