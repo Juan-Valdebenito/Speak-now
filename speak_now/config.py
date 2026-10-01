@@ -39,3 +39,20 @@ MODELS_DIR = "models"
 ARGOS_PACKAGES_DIR = MODELS_DIR + "/argos"
 # Idiomas soportados por el programa.
 LANGUAGES = {"en": "Inglés", "es": "Español"}
+
+# --- Ventana de subtítulos (Tkinter) ---
+# Ancho de la ventana como fracción del ancho de la pantalla.
+SUBTITLE_WIDTH_RATIO = 0.8
+# Distancia desde el borde inferior de la pantalla (en píxeles),
+# para no tapar la barra de tareas.
+SUBTITLE_BOTTOM_MARGIN = 80
+# Tamaño de letra de la traducción y del texto original.
+SUBTITLE_FONT_SIZE = 26
+ORIGINAL_FONT_SIZE = 14
+SUBTITLE_FONT = "Segoe UI"
+# Opacidad de la ventana: 0.0 = invisible, 1.0 = sólida.
+SUBTITLE_OPACITY = 0.85
+# Segundos sin texto nuevo antes de borrar el subtítulo.
+SUBTITLE_TIMEOUT = 6.0
+# Mostrar también el texto original (en pequeño, sobre la traducción).
+SHOW_ORIGINAL = True

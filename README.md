@@ -28,7 +28,7 @@ pip install -r requirements.txt
 - [x] Parte 1 – Estructura del proyecto y captura de audio
 - [x] Parte 2 – Transcripción con faster-whisper
 - [x] Parte 3 – Traducción con Argos Translate
-- [ ] Parte 4 – Ventana de subtítulos con Tkinter
+- [x] Parte 4 – Ventana de subtítulos con Tkinter
 - [ ] Parte 5 – Integración final y selector de idioma
 
 ## Probar la captura de audio (Parte 1)
@@ -65,3 +65,18 @@ python -m scripts.test_translator --mic --from es --to en
 
 La primera vez se descargan los paquetes de idioma de Argos (~100 MB cada
 dirección) en `models/argos/`. Después todo funciona sin internet.
+
+## Probar la ventana de subtítulos (Parte 4)
+
+```bash
+python -m scripts.test_subtitles
+```
+
+Aparece una barra negra semitransparente abajo de la pantalla, siempre
+encima de las demás ventanas, mostrando frases de ejemplo.
+
+- **Mover:** arrastra la ventana con el mouse.
+- **Cerrar:** tecla `Esc` (con la ventana enfocada) o doble clic derecho.
+- **Personalizar:** tamaño de letra, opacidad, ancho, posición y tiempo que
+  dura cada subtítulo se cambian en `speak_now/config.py`
+  (variables `SUBTITLE_*`).
