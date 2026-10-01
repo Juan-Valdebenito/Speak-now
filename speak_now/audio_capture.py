@@ -84,11 +84,13 @@ class AudioCapture:
     def phrases(self, silence_threshold=config.SILENCE_THRESHOLD,
                 silence_duration=config.SILENCE_DURATION,
                 max_duration=config.MAX_PHRASE_DURATION,
-                min_duration=config.MIN_PHRASE_DURATION):
-        """Generador infinito de frases: corta el audio cuando detecta silencio.
+                min_duration=config.MIN_PHRASE_DURATION,
+                stop_event=None):
+        """Generador de frases: corta el audio cuando detecta silencio.
 
         Así cada fragmento contiene frases completas en vez de cortes
         arbitrarios, lo que mejora mucho la transcripción.
+        Si se pasa `stop_event` (threading.Event), termina cuando se activa.
         """
         block_seconds = self.block_size / self.sample_rate
         silent_blocks_needed = round(silence_duration / block_seconds)
@@ -98,8 +100,11 @@ class AudioCapture:
         buffer = []
         silent_blocks = 0
         speaking = False
-        while True:
-            block = self.read_block()
+        while stop_event is None or not stop_event.is_set():
+            try:
+                block = self.read_block(timeout=0.5)
+            except queue.Empty:
+                continue
             is_speech = rms_level(block) >= silence_threshold
 
             if not speaking:

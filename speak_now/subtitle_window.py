@@ -36,9 +36,10 @@ class SubtitleWindow:
 
     POLL_MS = 50
 
-    def __init__(self, on_close=None):
+    def __init__(self, on_close=None, show_original=config.SHOW_ORIGINAL):
         _enable_dpi_awareness()
         self._on_close = on_close
+        self._show_original = show_original
         self._messages = queue.Queue()
         self._clear_job = None
         self._drag_offset = None
@@ -126,7 +127,7 @@ class SubtitleWindow:
         self.original_label.pack_forget()
         self.translation_label.pack_forget()
 
-        if config.SHOW_ORIGINAL and original:
+        if self._show_original and original:
             self.original_label.config(text=original)
             self.original_label.pack(padx=20, pady=(10, 0))
         self.translation_label.config(text=translation)

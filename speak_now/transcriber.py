@@ -42,4 +42,21 @@ class Transcriber:
             # "arrastre" texto de frases anteriores.
             condition_on_previous_text=False,
         )
-        return " ".join(seg.text.strip() for seg in segments).strip()
+        text = " ".join(seg.text.strip() for seg in segments).strip()
+        return "" if _is_hallucination(text) else text
+
+
+# Frases que Whisper suele "inventar" cuando solo escucha ruido o silencio
+# (vienen de los subtítulos de videos con los que fue entrenado).
+HALLUCINATIONS = {
+    "thank you", "thank you very much", "thanks for watching",
+    "thank you for watching", "please subscribe", "you",
+    "gracias", "muchas gracias", "gracias por ver el video",
+    "subtítulos realizados por la comunidad de amara.org",
+    "subtítulos por la comunidad de amara.org",
+}
+
+
+def _is_hallucination(text):
+    normalized = text.lower().strip(" .!?¡¿,")
+    return normalized in HALLUCINATIONS

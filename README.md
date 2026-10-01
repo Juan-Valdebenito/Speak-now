@@ -4,24 +4,120 @@ Traductor de voz con subtítulos en vivo, **gratuito y 100 % local**.
 Escucha a alguien hablar en inglés y muestra la traducción al español
 (o al revés, según elijas) como subtítulos en la parte de abajo de la pantalla.
 
-## Tecnologías
+Todo funciona en tu computador: después de la primera descarga de modelos
+no necesita internet ni cuentas de ningún servicio.
 
-- **sounddevice** – captura de audio del micrófono
-- **faster-whisper** – reconocimiento de voz (voz → texto)
-- **Argos Translate** – traducción offline (inglés ↔ español)
-- **Tkinter** – ventana de subtítulos
+## Cómo funciona
+
+```
+Micrófono ──► sounddevice ──► faster-whisper ──► Argos Translate ──► Tkinter
+              (audio, corta     (voz → texto)      (EN ↔ ES)          (subtítulos)
+               por silencios)
+```
+
+1. **sounddevice** graba el micrófono y corta el audio en frases cada vez
+   que detecta un silencio.
+2. **faster-whisper** convierte cada frase en texto.
+3. **Argos Translate** traduce el texto sin conexión.
+4. **Tkinter** muestra la traducción en una barra semitransparente
+   siempre visible abajo de la pantalla.
 
 ## Requisitos
 
+- Windows, macOS o Linux
 - Python 3.10 o superior (en Windows: `py -3.12`)
+- ~2 GB de espacio libre (librerías + modelos)
 
 ## Instalación
 
 ```bash
 py -3.12 -m venv .venv
-.venv\Scripts\activate
+.venv\Scripts\activate          # en macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+## Uso
+
+```bash
+python main.py
+```
+
+Se abre una ventana donde eliges:
+
+- **Qué idioma vas a escuchar:** Inglés → Español o Español → Inglés.
+- **Micrófono.**
+- **Modelo de reconocimiento de voz:** `small` es el recomendado; usa
+  `base` o `tiny` si los subtítulos llegan con mucho retraso.
+- **Mostrar también el texto original.**
+
+Al presionar **Iniciar** aparece la barra de subtítulos. La primera vez
+se descargan los modelos (~480 MB de Whisper `small` y ~100 MB por cada
+dirección de traducción), así que puede tardar unos minutos.
+
+**Controles de la barra de subtítulos:**
+
+- Arrastrar con el mouse para moverla.
+- Doble clic derecho (o `Esc` con la barra enfocada) para cerrar.
+
+### Iniciar directo, sin la ventana de opciones
+
+```bash
+python main.py --from en --to es                # inglés → español
+python main.py --from es --to en --model base   # español → inglés, modelo rápido
+python main.py --from en --device 1 --no-original
+```
+
+`python main.py --help` muestra todas las opciones.
+
+## Configuración
+
+Todos los ajustes están en [`speak_now/config.py`](speak_now/config.py):
+
+| Ajuste | Qué hace |
+|---|---|
+| `SILENCE_THRESHOLD` | Volumen mínimo para considerar que hay voz. Bájalo si no detecta tu voz; súbelo si capta ruido. |
+| `SILENCE_DURATION` | Silencio necesario para cerrar una frase. |
+| `MAX_PHRASE_DURATION` | Largo máximo de una frase si la persona no hace pausas. |
+| `WHISPER_MODEL` | Modelo por defecto (`tiny`, `base`, `small`, `medium`, `large-v3`). |
+| `WHISPER_DEVICE` / `WHISPER_COMPUTE_TYPE` | `"cuda"` / `"float16"` si tienes GPU NVIDIA. |
+| `WHISPER_BEAM_SIZE` | `1` = más rápido, `5` = algo más preciso. |
+| `SUBTITLE_*` | Tamaño de letra, opacidad, ancho, posición y duración de los subtítulos. |
+
+## Estructura del proyecto
+
+```
+main.py                       Punto de entrada
+speak_now/
+  config.py                   Ajustes
+  audio_capture.py            Micrófono y corte de frases por silencio
+  transcriber.py              Voz → texto (faster-whisper)
+  translator.py               Traducción (Argos Translate)
+  subtitle_window.py          Barra de subtítulos (Tkinter)
+  launcher.py                 Ventana de opciones al iniciar
+  app.py                      Une todas las piezas
+scripts/                      Pruebas de cada parte por separado
+models/                       Modelos descargados (no se suben a git)
+```
+
+## Probar cada parte por separado
+
+```bash
+python -m scripts.test_microphone          # medidor de volumen del micrófono
+python -m scripts.test_transcriber         # voz → texto
+python -m scripts.test_translator --mic    # voz → texto → traducción
+python -m scripts.test_subtitles           # barra de subtítulos con ejemplos
+```
+
+## Problemas comunes
+
+- **Los subtítulos llegan tarde:** usa un modelo más chico (`base` o `tiny`).
+- **No detecta mi voz:** revisa el micrófono con `scripts.test_microphone`
+  y baja `SILENCE_THRESHOLD`.
+- **Aparecen frases que nadie dijo ("Thank you", "Gracias"):** son
+  alucinaciones típicas de Whisper con ruido de fondo. Las más comunes se
+  filtran en `speak_now/transcriber.py` (`HALLUCINATIONS`).
+- **`python` abre Python 2.7:** activa el entorno virtual (`.venv\Scripts\activate`)
+  o usa `py -3.12`.
 
 ## Progreso
 
@@ -29,54 +125,4 @@ pip install -r requirements.txt
 - [x] Parte 2 – Transcripción con faster-whisper
 - [x] Parte 3 – Traducción con Argos Translate
 - [x] Parte 4 – Ventana de subtítulos con Tkinter
-- [ ] Parte 5 – Integración final y selector de idioma
-
-## Probar la captura de audio (Parte 1)
-
-```bash
-python -m scripts.test_microphone
-```
-
-Deberías ver una barra que se mueve cuando hablas.
-
-## Probar la transcripción (Parte 2)
-
-```bash
-python -m scripts.test_transcriber                 # hablas en inglés
-python -m scripts.test_transcriber --language es   # hablas en español
-python -m scripts.test_transcriber --model base    # modelo más rápido
-```
-
-La primera vez se descarga el modelo de Whisper (~480 MB para `small`)
-en la carpeta `models/`. Cada frase se muestra así:
-`[duración del audio | tiempo en procesarla] texto`.
-
-Si el texto aparece con mucho retraso, usa `--model base` o `--model tiny`.
-Si no detecta tu voz, baja `SILENCE_THRESHOLD` en `speak_now/config.py`.
-
-## Probar la traducción (Parte 3)
-
-```bash
-python -m scripts.test_translator                     # escribes en inglés -> español
-python -m scripts.test_translator --from es --to en   # escribes en español -> inglés
-python -m scripts.test_translator --mic               # hablas en inglés -> español
-python -m scripts.test_translator --mic --from es --to en
-```
-
-La primera vez se descargan los paquetes de idioma de Argos (~100 MB cada
-dirección) en `models/argos/`. Después todo funciona sin internet.
-
-## Probar la ventana de subtítulos (Parte 4)
-
-```bash
-python -m scripts.test_subtitles
-```
-
-Aparece una barra negra semitransparente abajo de la pantalla, siempre
-encima de las demás ventanas, mostrando frases de ejemplo.
-
-- **Mover:** arrastra la ventana con el mouse.
-- **Cerrar:** tecla `Esc` (con la ventana enfocada) o doble clic derecho.
-- **Personalizar:** tamaño de letra, opacidad, ancho, posición y tiempo que
-  dura cada subtítulo se cambian en `speak_now/config.py`
-  (variables `SUBTITLE_*`).
+- [x] Parte 5 – Integración final y selector de idioma
