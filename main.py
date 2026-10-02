@@ -1,10 +1,6 @@
-"""Speak-now: traductor de voz con subtítulos en vivo.
 
-Uso:
-    python main.py                      # abre la ventana para elegir opciones
-    python main.py --from en --to es    # empieza directo, sin ventana de inicio
-    python main.py --from es --to en --model base --device 1
-"""
+
+
 
 import argparse
 

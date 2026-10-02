@@ -3,7 +3,8 @@
 Ejecutar desde la raíz del proyecto:
     python -m scripts.test_subtitles
 
-Arrastra la ventana con el mouse. Cierra con Esc o doble clic derecho.
+Arrastra la ventana con el mouse. Haz clic en ella y prueba Espacio (pausa),
++ / - (tamaño) y O (texto original). Cierra con Esc o doble clic derecho.
 """
 
 import argparse
@@ -29,7 +30,7 @@ SAMPLES = [
 
 def feed(window, stop, delay, close_when_done):
     """Simula el traductor: manda frases desde otro hilo."""
-    window.set_status("Escuchando...")
+    window.set_state("listening", "Escuchando...")
     time.sleep(1)
     for original, translation in SAMPLES:
         if stop.is_set():

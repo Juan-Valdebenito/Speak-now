@@ -56,3 +56,7 @@ SUBTITLE_OPACITY = 0.85
 SUBTITLE_TIMEOUT = 6.0
 # Mostrar también el texto original (en pequeño, sobre la traducción).
 SHOW_ORIGINAL = True
+
+# --- Ventana de inicio ---
+# Archivo donde se recuerdan las últimas opciones elegidas (ignorado por git).
+USER_SETTINGS_FILE = "user_settings.json"

@@ -10,6 +10,9 @@ __pycache__/
 # Modelos descargados (pesan mucho, no se suben)
 models/
 
+# Últimas opciones elegidas en la ventana de inicio
+user_settings.json
+
 # Editor / sistema
 .vscode/
 .idea/

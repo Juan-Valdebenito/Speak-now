@@ -13,8 +13,8 @@ from speak_now.translator import Translator
 def _pipeline(window, settings, stop):
     """Corre en un hilo aparte para no congelar la ventana."""
     try:
-        window.set_status(f"Cargando modelo de voz '{settings.model}'... "
-                          "(la primera vez se descarga)")
+        window.set_state("loading", f"Cargando modelo de voz '{settings.model}'... "
+                                    "(la primera vez se descarga)")
         transcriber = Transcriber(model_size=settings.model)
 
         window.set_status("Cargando traductor... (la primera vez se descarga)")
@@ -22,22 +22,26 @@ def _pipeline(window, settings, stop):
 
         src = config.LANGUAGES[settings.from_code]
         dst = config.LANGUAGES[settings.to_code]
-        window.set_status(f"Escuchando {src} → {dst}...   "
-                          "(arrastra para mover · doble clic derecho para cerrar)")
+        window.set_state("listening", f"Escuchando {src} → {dst}...")
         print(f"Listo. Escuchando {src} -> {dst}. Cierra la ventana para salir.")
 
         with AudioCapture(device=settings.device) as mic:
             for phrase in mic.phrases(stop_event=stop):
-                text = transcriber.transcribe(phrase, language=settings.from_code)
-                if not text or stop.is_set():
+                # En pausa seguimos leyendo el micrófono, pero descartamos el audio.
+                if window.paused.is_set():
                     continue
-                translation = translator.translate(text)
+                window.set_state("processing")
+                text = transcriber.transcribe(phrase, language=settings.from_code)
+                translation = translator.translate(text) if text else ""
+                window.set_state("listening")
+                if not translation or stop.is_set():
+                    continue
                 print(f"[{settings.from_code}] {text}\n"
                       f"[{settings.to_code}] {translation}\n")
                 window.show(translation, text)
     except Exception as exc:  # noqa: BLE001 - mostramos cualquier error en pantalla
         traceback.print_exc()
-        window.set_status(f"Error: {exc}")
+        window.set_state("error", f"Error: {exc}")
 
 
 def run(settings):

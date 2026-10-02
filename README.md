@@ -45,7 +45,8 @@ python main.py
 Se abre una ventana donde eliges:
 
 - **Qué idioma vas a escuchar:** Inglés → Español o Español → Inglés.
-- **Micrófono.**
+- **Micrófono.** Debajo hay un medidor de volumen: habla y verás
+  "● Se detecta voz" si el micrófono capta lo suficiente.
 - **Modelo de reconocimiento de voz:** `small` es el recomendado; usa
   `base` o `tiny` si los subtítulos llegan con mucho retraso.
 - **Mostrar también el texto original.**
@@ -57,7 +58,18 @@ dirección de traducción), así que puede tardar unos minutos.
 **Controles de la barra de subtítulos:**
 
 - Arrastrar con el mouse para moverla.
-- Doble clic derecho (o `Esc` con la barra enfocada) para cerrar.
+- `Espacio`: pausar / reanudar.
+- `+` / `-`: agrandar / achicar la letra.
+- `O`: mostrar / ocultar el texto original.
+- Doble clic derecho (o `Esc`) para cerrar.
+
+Los atajos de teclado funcionan después de hacer clic en la barra.
+El punto de color de la esquina indica el estado: azul = cargando,
+verde = escuchando, amarillo = procesando una frase, gris = en pausa,
+rojo = error.
+
+Las opciones elegidas se recuerdan para la próxima vez
+(en `user_settings.json`).
 
 ### Iniciar directo, sin la ventana de opciones
 
