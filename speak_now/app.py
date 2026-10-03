@@ -1,10 +1,10 @@
-"""Une todas las piezas: micrófono -> Whisper -> Argos -> subtítulos."""
+"""Une todas las piezas: micrófono o sonido del PC -> Whisper -> Argos -> subtítulos."""
 
 import threading
 import traceback
 
 from speak_now import config
-from speak_now.audio_capture import AudioCapture
+from speak_now.audio_capture import SOURCE_SYSTEM, create_capture
 from speak_now.subtitle_window import SubtitleWindow
 from speak_now.transcriber import Transcriber
 from speak_now.translator import Translator
@@ -22,10 +22,11 @@ def _pipeline(window, settings, stop):
 
         src = config.LANGUAGES[settings.from_code]
         dst = config.LANGUAGES[settings.to_code]
-        window.set_state("listening", f"Escuchando {src} → {dst}...")
+        origin = "del PC" if settings.source == SOURCE_SYSTEM else "del micrófono"
+        window.set_state("listening", f"Escuchando {src} {origin} → {dst}...")
         print(f"Listo. Escuchando {src} -> {dst}. Cierra la ventana para salir.")
 
-        with AudioCapture(device=settings.device) as mic:
+        with create_capture(settings.source, settings.device) as mic:
             for phrase in mic.phrases(stop_event=stop):
                 # En pausa seguimos leyendo el micrófono, pero descartamos el audio.
                 if window.paused.is_set():

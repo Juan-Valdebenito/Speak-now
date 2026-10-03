@@ -1,6 +1,8 @@
 # Parte 1 - Captura de audio
 sounddevice>=0.4.6
 numpy>=1.24
+# Grabar el sonido del PC (WASAPI loopback). Solo existe para Windows.
+PyAudioWPatch>=0.2.12; sys_platform == "win32"
 
 # Parte 2 - Transcripción (voz -> texto)
 faster-whisper>=1.0

@@ -10,13 +10,15 @@ no necesita internet ni cuentas de ningún servicio.
 ## Cómo funciona
 
 ```
-Micrófono ──► sounddevice ──► faster-whisper ──► Argos Translate ──► Tkinter
-              (audio, corta     (voz → texto)      (EN ↔ ES)          (subtítulos)
-               por silencios)
+Micrófono ───► sounddevice ───┐
+                               ├─► faster-whisper ──► Argos Translate ──► Tkinter
+Sonido del PC ► PyAudioWPatch ─┘   (voz → texto)      (EN ↔ ES)          (subtítulos)
+                (solo Windows)
 ```
 
-1. **sounddevice** graba el micrófono y corta el audio en frases cada vez
-   que detecta un silencio.
+1. **sounddevice** graba el micrófono, o **PyAudioWPatch** graba lo que
+   suena por los parlantes (videos, llamadas, juegos; solo en Windows).
+   El audio se corta en frases cada vez que se detecta un silencio.
 2. **faster-whisper** convierte cada frase en texto.
 3. **Argos Translate** traduce el texto sin conexión.
 4. **Tkinter** muestra la traducción en una barra semitransparente
@@ -45,8 +47,11 @@ python main.py
 Se abre una ventana donde eliges:
 
 - **Qué idioma vas a escuchar:** Inglés → Español o Español → Inglés.
-- **Micrófono.** Debajo hay un medidor de volumen: habla y verás
-  "● Se detecta voz" si el micrófono capta lo suficiente.
+- **Escuchar desde** (solo en Windows): el **micrófono** o el **sonido del PC**.
+  Con "Sonido del PC" se traduce lo que suena en tus parlantes o audífonos:
+  un video de YouTube, una llamada de Zoom/Meet/Teams, un juego, etc.
+- **Micrófono / salida de audio.** Debajo hay un medidor de volumen: habla
+  (o reproduce un video) y verás "● Se detecta sonido" si llega audio.
 - **Modelo de reconocimiento de voz:** `small` es el recomendado; usa
   `base` o `tiny` si los subtítulos llegan con mucho retraso.
 - **Mostrar también el texto original.**
@@ -77,6 +82,7 @@ Las opciones elegidas se recuerdan para la próxima vez
 python main.py --from en --to es                # inglés → español
 python main.py --from es --to en --model base   # español → inglés, modelo rápido
 python main.py --from en --device 1 --no-original
+python main.py --from en --source system        # traduce el sonido del PC
 ```
 
 `python main.py --help` muestra todas las opciones.
@@ -101,7 +107,7 @@ Todos los ajustes están en [`speak_now/config.py`](speak_now/config.py):
 main.py                       Punto de entrada
 speak_now/
   config.py                   Ajustes
-  audio_capture.py            Micrófono y corte de frases por silencio
+  audio_capture.py            Micrófono / sonido del PC y corte de frases
   transcriber.py              Voz → texto (faster-whisper)
   translator.py               Traducción (Argos Translate)
   subtitle_window.py          Barra de subtítulos (Tkinter)
@@ -115,6 +121,7 @@ models/                       Modelos descargados (no se suben a git)
 
 ```bash
 python -m scripts.test_microphone          # medidor de volumen del micrófono
+python -m scripts.test_microphone --system # medidor del sonido del PC
 python -m scripts.test_transcriber         # voz → texto
 python -m scripts.test_translator --mic    # voz → texto → traducción
 python -m scripts.test_subtitles           # barra de subtítulos con ejemplos
@@ -128,6 +135,10 @@ python -m scripts.test_subtitles           # barra de subtítulos con ejemplos
 - **Aparecen frases que nadie dijo ("Thank you", "Gracias"):** son
   alucinaciones típicas de Whisper con ruido de fondo. Las más comunes se
   filtran en `speak_now/transcriber.py` (`HALLUCINATIONS`).
+- **Con "Sonido del PC" no aparece nada:** revisa que el audio salga por la
+  salida elegida (por ejemplo, audífonos vs. parlantes) con
+  `python -m scripts.test_microphone --system`. Con música de fondo la frase
+  puede tardar en cortarse (se corta sola a los `MAX_PHRASE_DURATION` segundos).
 - **`python` abre Python 2.7:** activa el entorno virtual (`.venv\Scripts\activate`)
   o usa `py -3.12`.
 

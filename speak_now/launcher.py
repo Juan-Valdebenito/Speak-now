@@ -1,6 +1,7 @@
-"""Ventana de inicio: la persona elige la dirección de traducción y el micrófono."""
+"""Ventana de inicio: la persona elige la dirección de traducción y qué escuchar."""
 
 import json
+import time
 import tkinter as tk
 from dataclasses import asdict, dataclass
 from tkinter import ttk
@@ -8,7 +9,9 @@ from tkinter import ttk
 import sounddevice as sd
 
 from speak_now import config
-from speak_now.audio_capture import rms_level
+from speak_now.audio_capture import (SOURCE_MIC, SOURCE_SYSTEM,
+                                     SYSTEM_AUDIO_AVAILABLE, create_capture,
+                                     list_loopback_devices, rms_level)
 from speak_now.subtitle_window import _enable_dpi_awareness
 
 DIRECTIONS = [
@@ -21,6 +24,11 @@ MODELS = [
     ("base", "base – rápido"),
     ("small", "small – equilibrado (recomendado)"),
     ("medium", "medium – preciso, lento sin GPU"),
+]
+
+SOURCES = [
+    (SOURCE_MIC, "Micrófono"),
+    (SOURCE_SYSTEM, "Sonido del PC (videos, llamadas, juegos...)"),
 ]
 
 DEFAULT_DEVICE_LABEL = "Predeterminado del sistema"
@@ -36,6 +44,7 @@ METER_HEIGHT = 8
 class Settings:
     from_code: str = "en"
     to_code: str = "es"
+    source: str = SOURCE_MIC
     device: int | None = None
     model: str = config.WHISPER_MODEL
     show_original: bool = config.SHOW_ORIGINAL
@@ -80,42 +89,60 @@ def _save_choices(settings, device_name):
         pass  # no es grave: la próxima vez se usan los valores por defecto
 
 
-class _MicMeter:
-    """Escucha un micrófono en segundo plano solo para medir el volumen."""
+def _devices_for(source):
+    """[(índice, nombre), ...] de los dispositivos de esa fuente de audio."""
+    if source == SOURCE_SYSTEM:
+        try:
+            return list_loopback_devices()
+        except OSError:
+            return []
+    return _microphones()
+
+
+class _LevelMeter:
+    """Escucha una fuente de audio en segundo plano solo para medir el volumen."""
+
+    # Si no llega audio en este tiempo (el PC no reproduce nada), volumen = 0.
+    IDLE_SECONDS = 0.3
 
     def __init__(self):
-        self.level = 0.0
-        self._stream = None
+        self._capture = None
+        self._level = 0.0
+        self._last_block_time = 0.0
 
-    def start(self, device):
-        """Abre el micrófono. Devuelve False si no se pudo."""
+    def start(self, source, device):
+        """Abre la fuente de audio. Devuelve False si no se pudo."""
         self.stop()
         try:
-            self._stream = sd.InputStream(
-                device=device, channels=config.CHANNELS,
-                samplerate=config.SAMPLE_RATE, dtype="float32",
-                blocksize=int(config.SAMPLE_RATE * config.BLOCK_DURATION),
-                callback=self._callback,
-            )
-            self._stream.start()
+            self._capture = create_capture(source, device)
+            self._capture.start()
             return True
-        except (sd.PortAudioError, ValueError):
-            self._stream = None
+        except (sd.PortAudioError, ValueError, OSError, RuntimeError):
+            self._capture = None
             return False
 
-    def _callback(self, indata, frames, time_info, status):
-        self.level = rms_level(indata[:, 0])
+    @property
+    def level(self):
+        """Volumen más reciente (0 si hace rato que no llega audio)."""
+        if self._capture is None:
+            return 0.0
+        blocks = self._capture.drain_blocks()
+        now = time.monotonic()
+        if blocks:
+            self._level = rms_level(blocks[-1])
+            self._last_block_time = now
+        elif now - self._last_block_time > self.IDLE_SECONDS:
+            self._level = 0.0
+        return self._level
 
     def stop(self):
-        if self._stream is not None:
-            self._stream.stop()
-            self._stream.close()
-            self._stream = None
-        self.level = 0.0
+        if self._capture is not None:
+            self._capture.stop()
+            self._capture = None
 
     @property
     def running(self):
-        return self._stream is not None
+        return self._capture is not None
 
 
 def ask_settings():
@@ -126,7 +153,7 @@ def ask_settings():
     root.resizable(False, False)
     result = {}
     last = _load_last_choices()
-    meter = _MicMeter()
+    meter = _LevelMeter()
 
     frame = ttk.Frame(root, padding=20)
     frame.pack(fill="both", expand=True)
@@ -146,21 +173,43 @@ def ask_settings():
         ttk.Radiobutton(frame, text=label, variable=direction, value=i).pack(
             anchor="w", padx=10)
 
-    # Micrófono
-    ttk.Label(frame, text="Micrófono", font=("Segoe UI", 10, "bold")).pack(
-        anchor="w", pady=(15, 2))
-    mics = _microphones()
-    mic_labels = [DEFAULT_DEVICE_LABEL] + [name for _i, name in mics]
-    mic_box = ttk.Combobox(frame, values=mic_labels, state="readonly", width=50)
-    last_mic = last.get("device_name")
-    mic_box.current(mic_labels.index(last_mic) if last_mic in mic_labels else 0)
-    mic_box.pack(anchor="w", fill="x")
+    # Fuente de audio: micrófono o sonido del PC (solo si está disponible).
+    last_source = last.get("source", SOURCE_MIC)
+    if last_source == SOURCE_SYSTEM and not SYSTEM_AUDIO_AVAILABLE:
+        last_source = SOURCE_MIC
+    source = tk.StringVar(value=last_source)
+    if SYSTEM_AUDIO_AVAILABLE:
+        ttk.Label(frame, text="Escuchar desde",
+                  font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(15, 0))
+        for value, label in SOURCES:
+            ttk.Radiobutton(frame, text=label, variable=source, value=value,
+                            command=lambda: on_source_changed()).pack(
+                anchor="w", padx=10)
+
+    # Dispositivo (micrófono o salida de audio, según la fuente)
+    device_title = ttk.Label(frame, font=("Segoe UI", 10, "bold"))
+    device_title.pack(anchor="w", pady=(15, 2))
+    device_box = ttk.Combobox(frame, state="readonly", width=50)
+    device_box.pack(anchor="w", fill="x")
+    devices = []
+
+    def fill_devices(preferred_name=None):
+        nonlocal devices
+        devices = _devices_for(source.get())
+        labels = [DEFAULT_DEVICE_LABEL] + [name for _i, name in devices]
+        device_box.config(values=labels)
+        device_box.current(labels.index(preferred_name)
+                           if preferred_name in labels else 0)
+        device_title.config(text="Salida de audio a escuchar"
+                            if source.get() == SOURCE_SYSTEM else "Micrófono")
 
     def selected_device():
-        index = mic_box.current()
-        return None if index == 0 else mics[index - 1][0]
+        index = device_box.current()
+        return None if index <= 0 else devices[index - 1][0]
 
-    # Medidor de volumen: confirma que el micrófono elegido capta la voz.
+    fill_devices(last.get("device_name"))
+
+    # Medidor de volumen: confirma que la fuente elegida capta sonido.
     meter_row = ttk.Frame(frame)
     meter_row.pack(fill="x", pady=(6, 0))
     meter_bar = tk.Canvas(meter_row, width=METER_WIDTH, height=METER_HEIGHT,
@@ -171,9 +220,13 @@ def ask_settings():
     meter_label.pack(side="left", padx=(10, 0))
 
     def restart_meter(_event=None):
-        if not meter.start(selected_device()):
-            meter_label.config(text="No se pudo abrir este micrófono",
+        if not meter.start(source.get(), selected_device()):
+            meter_label.config(text="No se pudo abrir este dispositivo",
                                foreground="#D33")
+
+    def on_source_changed():
+        fill_devices()
+        restart_meter()
 
     def refresh_meter():
         if meter.running:
@@ -184,7 +237,10 @@ def ask_settings():
             meter_bar.coords(meter_fill, 0, 0, fraction * METER_WIDTH, METER_HEIGHT)
             meter_bar.itemconfig(meter_fill, fill="#3DDC84" if voice else "#A0A7B4")
             if voice:
-                meter_label.config(text="● Se detecta voz", foreground="#1E9E5A")
+                meter_label.config(text="● Se detecta sonido", foreground="#1E9E5A")
+            elif source.get() == SOURCE_SYSTEM:
+                meter_label.config(text="Reproduce un video para probar",
+                                   foreground="#666")
             else:
                 meter_label.config(text="Habla para probar el micrófono",
                                    foreground="#666")
@@ -192,7 +248,7 @@ def ask_settings():
             meter_bar.coords(meter_fill, 0, 0, 0, METER_HEIGHT)
         root.after(METER_REFRESH_MS, refresh_meter)
 
-    mic_box.bind("<<ComboboxSelected>>", restart_meter)
+    device_box.bind("<<ComboboxSelected>>", restart_meter)
 
     # Modelo de Whisper
     ttk.Label(frame, text="Modelo de reconocimiento de voz",
@@ -219,11 +275,12 @@ def ask_settings():
         settings = Settings(
             from_code=src,
             to_code=dst,
+            source=source.get(),
             device=selected_device(),
             model=model_names[model_box.current()],
             show_original=show_original.get(),
         )
-        _save_choices(settings, mic_box.get())
+        _save_choices(settings, device_box.get())
         result["settings"] = settings
         close()
 
