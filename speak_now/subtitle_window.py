@@ -4,6 +4,7 @@ import queue
 import sys
 import threading
 import tkinter as tk
+import tkinter.font as tkfont
 
 from speak_now import config
 
@@ -15,6 +16,11 @@ HINT_COLOR = "#5C6370"
 # En Windows este color se vuelve transparente: así logramos esquinas redondeadas.
 TRANSPARENT_KEY = "#010203"
 CORNER_RADIUS = 18
+# La barra se ajusta al texto (hasta SUBTITLE_WIDTH_RATIO de la pantalla),
+# pero nunca queda más angosta que esto.
+MIN_WIDTH = 360
+PAD_X, PAD_Y = 44, 14
+DOT_SIZE = 8
 
 # Color del punto indicador según el estado.
 STATE_COLORS = {
@@ -100,7 +106,15 @@ class SubtitleWindow:
             self.root.attributes("-transparentcolor", TRANSPARENT_KEY)
         self.root.configure(bg=canvas_bg)
 
-        self.width = int(self.root.winfo_screenwidth() * config.SUBTITLE_WIDTH_RATIO)
+        # Semibold se ve más limpio que la negrita; si la fuente no existe
+        # (ej. fuera de Windows) usamos la negrita normal.
+        semibold = f"{config.SUBTITLE_FONT} Semibold"
+        self._emphasis = ((semibold,) if semibold in tkfont.families(self.root)
+                          else (config.SUBTITLE_FONT, "bold"))
+
+        self.max_width = int(self.root.winfo_screenwidth()
+                             * config.SUBTITLE_WIDTH_RATIO)
+        self.width = self.max_width
         self.canvas = tk.Canvas(self.root, width=self.width, height=60,
                                 bg=canvas_bg, highlightthickness=0, bd=0)
         self.canvas.pack(fill="both", expand=True)
@@ -220,17 +234,17 @@ class SubtitleWindow:
             self.root.after_cancel(self._fade_job)
             self._fade_job = None
 
-        pad_x, pad_y = 44, 14
-        center = self.width // 2
-        wrap = self.width - 2 * pad_x
+        center = self.max_width // 2
+        wrap = self.max_width - 2 * PAD_X
         small = max(MIN_FONT_SIZE - 2, round(self._font_size * 0.5))
-        y = pad_y
+        y = PAD_Y
         faded = []  # (item, color final) de los textos que aparecen suavemente
 
         def text(content, color, font):
             nonlocal y
             item = c.create_text(center, y, text=content, anchor="n", fill=color,
-                                 font=font, width=wrap, justify="center")
+                                 font=font, width=wrap, justify="center",
+                                 tags="text")
             y = c.bbox(item)[3] + 4
             return item
 
@@ -239,8 +253,9 @@ class SubtitleWindow:
                 item = text(self._original, ORIGINAL_COLOR,
                             (config.SUBTITLE_FONT, small))
                 faded.append((item, ORIGINAL_COLOR))
+            family, *style = self._emphasis
             item = text(self._translation, TEXT_COLOR,
-                        (config.SUBTITLE_FONT, self._font_size, "bold"))
+                        (family, self._font_size, *style))
             faded.append((item, TEXT_COLOR))
         else:
             status = "En pausa  —  Espacio para reanudar" \
@@ -248,14 +263,20 @@ class SubtitleWindow:
             text(status, STATUS_COLOR, (config.SUBTITLE_FONT, small, "italic"))
             text(HINT_TEXT, HINT_COLOR, (config.SUBTITLE_FONT, max(9, small - 4)))
 
-        height = y + pad_y - 4
+        height = y + PAD_Y - 4
+
+        # La barra mide lo justo para el texto, como los subtítulos de un video.
+        left, _top, right, _bottom = c.bbox("text")
+        self.width = max(MIN_WIDTH, min(self.max_width, right - left + 2 * PAD_X))
+        c.move("text", (self.width - self.max_width) / 2, 0)
 
         # Fondo (redondeado en Windows) e indicador de estado.
         self._background(height)
         dot = STATE_COLORS.get(self._state, STATUS_COLOR)
-        c.create_oval(18, 18, 30, 30, fill=dot, outline="")
+        x0 = y0 = PAD_Y + 4
+        c.create_oval(x0, y0, x0 + DOT_SIZE, y0 + DOT_SIZE, fill=dot, outline="")
 
-        c.config(height=height)
+        c.config(width=self.width, height=height)
         self._reposition(height)
 
         if fade:
@@ -289,13 +310,15 @@ class SubtitleWindow:
             self._fade_job = None
 
     def _reposition(self, height):
-        """Ajusta el alto al contenido y mantiene fijo el borde inferior."""
+        """Ajusta el tamaño al contenido manteniendo fijos el centro y el borde
+        inferior (así la barra crece hacia los lados y hacia arriba)."""
         if self._moved_by_user:
-            x = self.root.winfo_x()
+            center = self.root.winfo_x() + self.root.winfo_width() // 2
             bottom = self.root.winfo_y() + self.root.winfo_height()
         else:
-            x = (self.root.winfo_screenwidth() - self.width) // 2
+            center = self.root.winfo_screenwidth() // 2
             bottom = self.root.winfo_screenheight() - config.SUBTITLE_BOTTOM_MARGIN
+        x = center - self.width // 2
         self.root.geometry(f"{self.width}x{height}+{x}+{bottom - height}")
 
     def _start_drag(self, event):

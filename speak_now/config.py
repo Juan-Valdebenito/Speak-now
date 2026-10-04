@@ -41,7 +41,7 @@ ARGOS_PACKAGES_DIR = MODELS_DIR + "/argos"
 LANGUAGES = {"en": "Inglés", "es": "Español"}
 
 # --- Ventana de subtítulos (Tkinter) ---
-# Ancho de la ventana como fracción del ancho de la pantalla.
+# Ancho máximo de la barra como fracción de la pantalla (se ajusta al texto).
 SUBTITLE_WIDTH_RATIO = 0.8
 # Distancia desde el borde inferior de la pantalla (en píxeles),
 # para no tapar la barra de tareas.
